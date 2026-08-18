@@ -1,0 +1,22 @@
+{
+  "https://example.com": {
+    "status": "success",
+    "attempts": 1
+  },
+  "https://www.example.com": {
+    "status": "success",
+    "attempts": 1
+  },
+  "https://example.org": {
+    "status": "success",
+    "attempts": 1
+  },
+  "https://www.wikipedia.org": {
+    "status": "success",
+    "attempts": 1
+  },
+  "https://developer.mozilla.org": {
+    "status": "success",
+    "attempts": 1
+  }
+}

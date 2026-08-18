@@ -12,15 +12,25 @@ class QueueManager:
             return [u.strip() for u in f if u.strip()]
 
     def _load_progress(self):
-        if os.path.exists(PROGRESS_FILE):
+        if not os.path.exists(PROGRESS_FILE):
+            return {}
+        try:
             with open(PROGRESS_FILE, "r") as f:
-                return json.load(f)
-        return {}
+                content = f.read().strip()
+                # empty file → treat as fresh state
+                if not content:
+                    return {}
+                return json.loads(content)
+        except Exception:
+            # corrupted JSON → reset safely
+            return {}
 
     def save(self):
         os.makedirs(os.path.dirname(PROGRESS_FILE), exist_ok=True)
-        with open(PROGRESS_FILE, "w") as f:
+        tmp_file = PROGRESS_FILE + ".tmp"
+        with open(tmp_file, "w") as f:
             json.dump(self.progress, f, indent=2)
+        os.replace(tmp_file, PROGRESS_FILE)
 
     def get_pending(self):
         return [

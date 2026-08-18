@@ -11,9 +11,7 @@ class AsyncWorker:
 
     async def run(self, queue):
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)
-
-            # Persistent context helps reduce repeated captcha
+            browser = await p.chromium.launch(headless=False, channel="chrome")
             context = await browser.new_context()
             page = await context.new_page()
 

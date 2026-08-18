@@ -47,12 +47,7 @@ def status():
     failed = sum(1 for v in queue.progress.values() if v["status"] == "failed")
     retry = sum(1 for v in queue.progress.values() if v["status"] == "retry")
 
-    print(f"""
-        Total: {total}
-        Success: {success}
-        Retrying: {retry}
-        Failed: {failed}
-    """)
+    print(f"""Total: {total} | Success: {success} | Retrying: {retry} | Failed: {failed}""")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
