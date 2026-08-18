@@ -1,29 +1,39 @@
+import os
 import asyncio
 import random
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
-
-from config import BASE_URL, TIMEOUT, COOLDOWN_MIN, COOLDOWN_MAX
-
+from config import BASE_URL, TIMEOUT, COOLDOWN_MIN, COOLDOWN_MAX, PROFILE_DIR
 
 class AsyncWorker:
     def __init__(self, logger):
         self.logger = logger
 
     async def run(self, queue):
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False, channel="chrome")
-            context = await browser.new_context()
-            page = await context.new_page()
+        os.makedirs(PROFILE_DIR, exist_ok=True)
 
-            for url in queue:
+        async with async_playwright() as p:
+            context = await p.chromium.launch_persistent_context(
+                user_data_dir=PROFILE_DIR,
+                headless=False,
+                channel="chrome",
+                args=["--start-maximized", "--disable-blink-features=AutomationControlled"]
+            )
+
+            page = context.pages[0] if context.pages else await context.new_page()
+
+            for i, url in enumerate(queue):
                 success = await self.process(page, url)
                 yield url, success
 
-                cooldown = random.randint(COOLDOWN_MIN, COOLDOWN_MAX)
+                if success:
+                    cooldown = random.uniform(COOLDOWN_MAX, COOLDOWN_MAX)
+                else:
+                    cooldown = random.uniform(COOLDOWN_MIN * 2.0, COOLDOWN_MAX * 3.0)
+
                 self.logger.info(f"Cooldown {cooldown}s...")
                 await asyncio.sleep(cooldown)
 
-            await browser.close()
+            await context.close()
 
     async def process(self, page, url):
         try:
