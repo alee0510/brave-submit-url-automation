@@ -1,7 +1,11 @@
 [project]
-name = "brave-submit"
+name = "brave-submitter"
 version = "0.1.0"
-description = "Add your description here"
+description = "CLI tool to submit URLs to Brave"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "playwright>=1.62.0",
+]
+[project.scripts]
+brave-submit = "submit:main"
