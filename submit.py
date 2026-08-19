@@ -1,16 +1,12 @@
 import argparse
 import asyncio
 
-from logger import setup_logger
+from logger import setup_logger, log_to_file
 from queue_manager import QueueManager
 from async_worker import AsyncWorker
 from config import MAX_RETRIES, SUCCESS_LOG, FAILED_LOG
 
 logger = setup_logger()
-
-def log_to_file(path, msg):
-    with open(path, "a") as f:
-        f.write(msg + "\n")
 
 async def run(mode):
     queue = QueueManager()
@@ -32,13 +28,14 @@ async def run(mode):
 
         if success:
             queue.mark_success(url)
-            log_to_file(SUCCESS_LOG, url)
+            log_to_file(SUCCESS_LOG, url, "success", attempts)
         else:
             if attempts >= MAX_RETRIES:
                 queue.mark_failed(url, attempts)
-                log_to_file(FAILED_LOG, url)
+                log_to_file(FAILED_LOG, url, "failed", attempts)
             else:
                 queue.mark_retry(url, attempts)
+                log_to_file(FAILED_LOG, url, "retry", attempts)
 
 def status():
     queue = QueueManager()

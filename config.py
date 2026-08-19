@@ -1,5 +1,5 @@
 BASE_URL = "https://search.brave.com/submit-url"
-PROFILE_DIR = "/Users/user/Library/Application Support/Google/Chrome"
+PROFILE_DIR = "/Users/user/Library/Application Support/Automation Profile"
 
 MAX_RETRIES = 3
 TIMEOUT = 30000
