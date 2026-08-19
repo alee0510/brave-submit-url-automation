@@ -10,7 +10,9 @@ wheels/
 # Virtual environments
 .venv
 
-# errors and logs
-/errors/
-/data/logs.csv
-/data/urls.csv
+# data and logs
+data/*.csv
+errors/
+profile/
+*.pyc
+.env

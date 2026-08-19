@@ -5,7 +5,9 @@ description = "CLI tool to submit URLs to Brave"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "openpyxl>=3.1.5",
     "playwright>=1.62.0",
+    "rich>=15.0.0",
 ]
 [project.scripts]
 brave-submit = "submit:main"

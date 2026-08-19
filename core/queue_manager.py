@@ -21,16 +21,17 @@ class QueueManager:
             writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
             writer.writeheader()
             writer.writerows(self.rows.values())
-        os.replace(tmp_file, URLS_CSV)  # atomic, same safety as before
+        os.replace(tmp_file, URLS_CSV)
 
     def add_url(self, url):
-        """New: lets you append a fresh URL as a pending row instead of editing a .txt file."""
+        """Returns True if newly added, False if it already existed (caller batches save())."""
         if url not in self.rows:
             self.rows[url] = {
                 "url": url, "status": "pending", "attempts": "0",
                 "last_attempt_at": "", "submitted_at": "", "last_error": ""
             }
-            self.save()
+            return True
+        return False
 
     def get_pending(self):
         return [u for u, r in self.rows.items() if r["status"] not in ("success",)]

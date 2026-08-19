@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  brave-submitter:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ../data:/app/data
+      - ../errors:/app/errors
+      - ../profile:/app/profile
+    stdin_open: true
+    tty: true
+    # No restart policy — this is invoked manually via `docker compose run`, not a daemon

@@ -2,9 +2,11 @@ import argparse
 import asyncio
 from datetime import datetime, timezone
 
-from logger import setup_logger, log_to_file
-from queue_manager import QueueManager
-from async_worker import AsyncWorker
+from core.logger import setup_logger, log_to_file
+from core.queue_manager import QueueManager
+from core.async_worker import AsyncWorker
+from core.importer import import_urls
+from cli.report import render_status_table
 from config import MAX_RETRIES, LOGS_CSV
 
 logger = setup_logger()
@@ -16,9 +18,7 @@ async def run(mode):
     queue = QueueManager()
     worker = AsyncWorker(logger)
 
-    if mode == "run":
-        urls = queue.get_pending()
-    elif mode == "resume":
+    if mode in ("run", "resume"):
         urls = queue.get_pending()
     elif mode == "retry-failed":
         urls = queue.get_failed()
@@ -42,23 +42,30 @@ async def run(mode):
                 queue.mark_retry(url, attempts, timestamp)
                 log_to_file(LOGS_CSV, url, "retry", attempts)
 
-def status():
-    queue = QueueManager()
-    total = len(queue.rows)
-    success = sum(1 for r in queue.rows.values() if r["status"] == "success")
-    failed = sum(1 for r in queue.rows.values() if r["status"] == "failed")
-    retry = sum(1 for r in queue.rows.values() if r["status"] == "retry")
-    pending = total - success - failed - retry
 
-    print(f"""Total: {total} | Pending: {pending} | Success: {success} | Retrying: {retry} | Failed: {failed}""")
+def do_import(file_path):
+    queue = QueueManager()
+    added, invalid, duplicate = import_urls(queue, file_path)
+    logger.info(f"[IMPORT] added={added} invalid={invalid} duplicate={duplicate} from {file_path}")
+    print(f"Imported {added} new URL(s). Skipped {duplicate} duplicate(s), {invalid} invalid.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=["run", "resume", "status", "retry-failed"])
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    subparsers.add_parser("run")
+    subparsers.add_parser("resume")
+    subparsers.add_parser("retry-failed")
+    subparsers.add_parser("status")
+
+    import_parser = subparsers.add_parser("import")
+    import_parser.add_argument("--file", required=True, help="Path to a .csv or .xlsx file of URLs")
 
     args = parser.parse_args()
 
     if args.command == "status":
-        status()
+        render_status_table()
+    elif args.command == "import":
+        do_import(args.file)
     else:
         asyncio.run(run(args.command))

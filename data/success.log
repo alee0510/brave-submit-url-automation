@@ -1,6 +1,0 @@
-
-{"url": "https://example.com", "status": "success", "attempt": 1, "timestamp": "2026-08-19T06:54:37.447329"}
-{"url": "https://www.example.com", "status": "success", "attempt": 1, "timestamp": "2026-08-19T06:54:47.397004"}
-{"url": "https://example.org", "status": "success", "attempt": 1, "timestamp": "2026-08-19T06:55:01.638969"}
-{"url": "https://www.wikipedia.org", "status": "success", "attempt": 1, "timestamp": "2026-08-19T06:55:13.666698"}
-{"url": "https://developer.mozilla.org", "status": "success", "attempt": 1, "timestamp": "2026-08-19T06:55:27.265884"}

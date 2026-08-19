@@ -3,13 +3,21 @@ import asyncio
 import random
 import time
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
-from config import BASE_URL, COOLDOWN_MIN, COOLDOWN_MAX, PROFILE_DIR, LOGS_CSV
-from human_type import human_type
-from logger import log_to_file
+
+from config import (
+    BASE_URL, PROFILE_DIR, ERRORS_DIR, LOGS_CSV,
+    COOLDOWN_MIN, COOLDOWN_MAX,
+    BATCH_SIZE, BATCH_PAUSE_MIN, BATCH_PAUSE_MAX,
+    CAPTCHA_AUTO_TIMEOUT_MS, SELECTOR_TIMEOUT_MS,
+)
+from core.human_type import human_type
+from core.logger import log_to_file
 
 class AsyncWorker:
     def __init__(self, logger):
         self.logger = logger
+        # Lightweight PoW visibility — not persisted, just logged at run end
+        self.pow_stats = {"auto_resolved": 0, "timed_out": 0}
 
     async def run(self, queue):
         os.makedirs(PROFILE_DIR, exist_ok=True)
@@ -41,45 +49,52 @@ class AsyncWorker:
                         f"[BACKOFF] success={success} | streak={failure_streak} | sleep={cooldown:.2f}s"
                     )
                     await asyncio.sleep(cooldown)
+
+                    # Extra pause every BATCH_SIZE URLs to break up request cadence
+                    if (i + 1) % BATCH_SIZE == 0 and (i + 1) < len(queue):
+                        batch_pause = random.uniform(BATCH_PAUSE_MIN, BATCH_PAUSE_MAX)
+                        self.logger.info(f"[BATCH PAUSE] Processed {i + 1} URLs, pausing {batch_pause:.2f}s")
+                        await asyncio.sleep(batch_pause)
             finally:
+                self.logger.info(
+                    f"[POW SUMMARY] auto_resolved={self.pow_stats['auto_resolved']} "
+                    f"timed_out={self.pow_stats['timed_out']}"
+                )
                 await context.close()
 
     async def process(self, page, url):
         try:
             self.logger.info(f"[START] Processing URL: {url}")
 
-            # STEP 1: Navigate
             self.logger.info("[STEP 1] Navigating to Brave submit page...")
             await page.goto(BASE_URL, wait_until="domcontentloaded")
-            current_url = page.url
-            self.logger.info(f"[STEP 1 DONE] Current URL: {current_url}")
+            self.logger.info(f"[STEP 1 DONE] Current URL: {page.url}")
 
-            # STEP 2: Wait for input
             self.logger.info("[STEP 2] Waiting for #url input...")
-            await page.wait_for_selector("#url", timeout=10000)
+            await page.wait_for_selector("#url", timeout=SELECTOR_TIMEOUT_MS)
             self.logger.info("[STEP 2 DONE] Input detected")
 
-            # STEP 3: Human typing
             self.logger.info("[STEP 3] Typing URL...")
             await human_type(page, "#url", url)
             self.logger.info("[STEP 3 DONE] Typing complete")
 
-            # STEP 4: Pre-submit delay
             delay = random.uniform(0.5, 1.5)
             self.logger.info(f"[STEP 4] Human delay {delay:.2f}s")
             await asyncio.sleep(delay)
 
-            # STEP 5: Wait for captcha/button
-            self.logger.info("[STEP 5] Waiting for button enabled (captcha)...")
-            await self.wait_for_button_enabled(page)
+            # STEP 5: Wait for PoW captcha to auto-resolve — no human fallback
+            self.logger.info("[STEP 5] Waiting for button enabled (PoW captcha)...")
+            resolved = await self.wait_for_button_enabled(page)
+            if not resolved:
+                self.logger.warning(f"[FAILED] PoW captcha timeout | {url}")
+                log_to_file(LOGS_CSV, url, "failed", 1, "PoW captcha timeout")
+                return False
             self.logger.info("[STEP 5 DONE] Button enabled")
 
-            # STEP 6: Click submit
             self.logger.info("[STEP 6] Clicking submit...")
             await page.click("button[name='captcha-button']")
             self.logger.info("[STEP 6 DONE] Click executed")
 
-            # STEP 7: Wait for success
             self.logger.info("[STEP 7] Waiting for success signal...")
             success, detail = await self.wait_for_success(page)
 
@@ -96,10 +111,10 @@ class AsyncWorker:
             log_to_file(LOGS_CSV, url, "error", 1, str(e))
             return False
 
-    async def wait_for_button_enabled(self, page, timeout=120000):
+    async def wait_for_button_enabled(self, page, timeout=CAPTCHA_AUTO_TIMEOUT_MS):
         """
-        Wait until captcha is solved and button becomes enabled.
-        Fallback to manual ENTER if needed.
+        Wait for the PoW challenge to resolve automatically.
+        Fully unattended — returns True if resolved, False on timeout.
         """
         try:
             self.logger.info("[WAIT] Monitoring button state...")
@@ -110,44 +125,30 @@ class AsyncWorker:
                 }""",
                 timeout=timeout
             )
+            self.pow_stats["auto_resolved"] += 1
+            return True
         except PlaywrightTimeoutError:
-            self.logger.warning("[TIMEOUT] ⚠️ Button still disabled (captcha likely present)")
-            # EXTRA DEBUG: check button state
-            try:
-                disabled = await page.eval_on_selector(
-                    "button[name='captcha-button']",
-                    "el => el.disabled"
-                )
-                self.logger.warning(f"[DEBUG] Button disabled = {disabled}")
-            except:
-                self.logger.warning("[DEBUG] Could not inspect button")
-
-            await asyncio.to_thread(input, "👉 Solve captcha, then press ENTER...")
+            self.pow_stats["timed_out"] += 1
+            self.logger.warning(f"[TIMEOUT] PoW did not resolve within {timeout / 1000:.0f}s")
+            await self.debug_snapshot(page, "pow_timeout")
+            return False
 
     async def wait_for_success(self, page):
-        """
-        Detect success or an explicit validation/server error.
-        Returns a tuple: (success: bool, detail: str | None)
-        """
         try:
             await page.wait_for_selector(
                 "div.info.error, div.info:has-text('Success')",
-                timeout=10000
+                timeout=SELECTOR_TIMEOUT_MS
             )
         except PlaywrightTimeoutError:
             await self.debug_snapshot(page, "timeout")
-
-            # Fallback: check button text (Submitted)
             try:
                 btn_text = await page.text_content("button[name='captcha-button']")
                 if btn_text and "submitted" in btn_text.lower():
                     return True, None
-            except:
+            except Exception:
                 pass
-
             return False, "Timed out waiting for a success/error signal"
 
-        # Something appeared — figure out which one it was
         error_el = await page.query_selector("div.info.error")
         if error_el:
             detail = await self._extract_message(error_el)
@@ -158,10 +159,6 @@ class AsyncWorker:
         return True, None
 
     async def _extract_message(self, element):
-        """
-        Pull the human-readable text out of a div.info block,
-        e.g. 'Please insert a valid URL.'
-        """
         try:
             detail_el = await element.query_selector(".t-tertiary")
             text = await (detail_el.inner_text() if detail_el else element.inner_text())
@@ -171,15 +168,11 @@ class AsyncWorker:
 
     async def debug_snapshot(self, page, label="debug"):
         try:
-            errors_dir = "errors"
-            os.makedirs(errors_dir, exist_ok=True)
-
-            path = os.path.join(errors_dir, f"debug_{label}_{int(time.time())}.html")
+            os.makedirs(ERRORS_DIR, exist_ok=True)
+            path = os.path.join(ERRORS_DIR, f"debug_{label}_{int(time.time())}.html")
             content = await page.content()
-
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content)
-
             self.logger.info(f"[SNAPSHOT] Saved DOM to {path}")
         except Exception as e:
             self.logger.warning(f"[SNAPSHOT ERROR] {e}")
