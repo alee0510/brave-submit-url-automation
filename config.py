@@ -12,3 +12,6 @@ PROGRESS_FILE = "state/progress.json"
 
 SUCCESS_LOG = "data/success.log"
 FAILED_LOG = "data/failed.log"
+
+URLS_CSV = "data/urls.csv"
+LOGS_CSV = "data/logs.csv"

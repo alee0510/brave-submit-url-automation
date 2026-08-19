@@ -3,7 +3,7 @@ import asyncio
 import random
 import time
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
-from config import BASE_URL, COOLDOWN_MIN, COOLDOWN_MAX, PROFILE_DIR, FAILED_LOG
+from config import BASE_URL, COOLDOWN_MIN, COOLDOWN_MAX, PROFILE_DIR, LOGS_CSV
 from human_type import human_type
 from logger import log_to_file
 
@@ -92,7 +92,7 @@ class AsyncWorker:
 
         except Exception as e:
             self.logger.error(f"[ERROR] {url} | {type(e).__name__} | {e}")
-            log_to_file(FAILED_LOG, url, "error", 1, str(e))
+            log_to_file(LOGS_CSV, url, "error", 1, str(e))
             return False
 
     async def wait_for_button_enabled(self, page, timeout=120000):
@@ -111,7 +111,7 @@ class AsyncWorker:
             )
         except PlaywrightTimeoutError:
             self.logger.warning("[TIMEOUT] ⚠️ Button still disabled (captcha likely present)")
-             # 🔍 EXTRA DEBUG: check button state
+            # EXTRA DEBUG: check button state
             try:
                 disabled = await page.eval_on_selector(
                     "button[name='captcha-button']",

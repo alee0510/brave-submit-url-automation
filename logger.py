@@ -1,6 +1,7 @@
 import logging
-import json
-from datetime import datetime
+import csv
+import os
+from datetime import datetime, timezone
 
 def setup_logger():
     logging.basicConfig(
@@ -9,17 +10,13 @@ def setup_logger():
     )
     return logging.getLogger("brave_submitter")
 
-
 def log_to_file(path, url, status, attempt, error=None):
-    entry = {
-        "url": url,
-        "status": status,
-        "attempt": attempt,
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-    if error:
-        entry["error"] = str(error)
-
-    with open(path, "a") as f:
-        f.write(json.dumps(entry) + "\n")
+    file_exists = os.path.exists(path)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow(["timestamp", "url", "status", "attempt", "error"])
+        writer.writerow([
+            datetime.now(timezone.utc).isoformat(), url, status, attempt, error or ""
+        ])
