@@ -12,3 +12,6 @@ timestamp,url,status,attempt,error
 2026-08-19T07:25:39.390600+00:00,https://www.example.com/foo/?bar=baz&inga=42,success,1,
 2026-08-19T07:25:59.799747+00:00,http://userid:password@host.com:8080,retry,1,
 2026-08-19T07:31:27.543746+00:00,http://userid:password@host.com:8080,retry,2,
+2026-08-19T07:34:53.357680+00:00,http://userid:password@host.com:8080,failed,3,
+2026-08-19T07:53:27.217776+00:00,http://userid:password@host.com:8080,failed,1,Please insert a valid URL.
+2026-08-19T07:53:27.219101+00:00,http://userid:password@host.com:8080,failed,4,

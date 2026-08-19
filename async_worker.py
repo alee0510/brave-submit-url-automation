@@ -81,13 +81,14 @@ class AsyncWorker:
 
             # STEP 7: Wait for success
             self.logger.info("[STEP 7] Waiting for success signal...")
-            success = await self.wait_for_success(page)
+            success, detail = await self.wait_for_success(page)
 
             if success:
                 self.logger.info(f"[SUCCESS] {url}")
                 return True
             else:
-                self.logger.warning(f"[FAILED] No success signal for {url}")
+                self.logger.warning(f"[FAILED] {detail or 'No success signal'} | {url}")
+                log_to_file(LOGS_CSV, url, "failed", 1, detail)
                 return False
 
         except Exception as e:
@@ -125,30 +126,55 @@ class AsyncWorker:
 
     async def wait_for_success(self, page):
         """
-        Detect success using multiple signals
+        Detect success or an explicit validation/server error.
+        Returns a tuple: (success: bool, detail: str | None)
         """
         try:
             await page.wait_for_selector(
-                "div.info:has-text('Success')",
+                "div.info.error, div.info:has-text('Success')",
                 timeout=10000
             )
-            return True
         except PlaywrightTimeoutError:
-            await self.debug_snapshot(page, "error")
+            await self.debug_snapshot(page, "timeout")
 
-        # Fallback: check button text (Submitted)
+            # Fallback: check button text (Submitted)
+            try:
+                btn_text = await page.text_content("button[name='captcha-button']")
+                if btn_text and "submitted" in btn_text.lower():
+                    return True, None
+            except:
+                pass
+
+            return False, "Timed out waiting for a success/error signal"
+
+        # Something appeared — figure out which one it was
+        error_el = await page.query_selector("div.info.error")
+        if error_el:
+            detail = await self._extract_message(error_el)
+            self.logger.warning(f"[ERROR SIGNAL] {detail}")
+            await self.debug_snapshot(page, "error")
+            return False, detail
+
+        return True, None
+
+    async def _extract_message(self, element):
+        """
+        Pull the human-readable text out of a div.info block,
+        e.g. 'Please insert a valid URL.'
+        """
         try:
-            btn_text = await page.text_content("button[name='captcha-button']")
-            if btn_text and "submitted" in btn_text.lower():
-                return True
-        except:
-            await self.debug_snapshot(page, "error")
-
-        return False
+            detail_el = await element.query_selector(".t-tertiary")
+            text = await (detail_el.inner_text() if detail_el else element.inner_text())
+            return text.strip()
+        except Exception:
+            return "Unknown error (could not read message)"
 
     async def debug_snapshot(self, page, label="debug"):
         try:
-            path = f"debug_{label}_{int(time.time())}.html"
+            errors_dir = "errors"
+            os.makedirs(errors_dir, exist_ok=True)
+
+            path = os.path.join(errors_dir, f"debug_{label}_{int(time.time())}.html")
             content = await page.content()
 
             with open(path, "w", encoding="utf-8") as f:
