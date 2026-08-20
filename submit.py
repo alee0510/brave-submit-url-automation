@@ -27,7 +27,7 @@ async def run(mode):
 
     logger.info(f"Processing {len(urls)} URLs...")
 
-    async for url, success in worker.run(urls):
+    async for url, success, detail in worker.run(urls):
         attempts = queue.get_attempts(url) + 1
         timestamp = _now()
 
@@ -36,10 +36,10 @@ async def run(mode):
             log_to_file(LOGS_CSV, url, "success", attempts)
         else:
             if attempts >= MAX_RETRIES:
-                queue.mark_failed(url, attempts, timestamp)
+                queue.mark_failed(url, attempts, timestamp, error=detail or "")
                 log_to_file(LOGS_CSV, url, "failed", attempts)
             else:
-                queue.mark_retry(url, attempts, timestamp)
+                queue.mark_retry(url, attempts, timestamp, error=detail or "")
                 log_to_file(LOGS_CSV, url, "retry", attempts)
 
 

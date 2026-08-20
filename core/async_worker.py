@@ -35,8 +35,8 @@ class AsyncWorker:
                 page = context.pages[0] if context.pages else await context.new_page()
 
                 for i, url in enumerate(queue):
-                    success = await self.process(page, url)
-                    yield url, success
+                    success, detail = await self.process(page, url)
+                    yield url, success, detail
 
                     if success:
                         failure_streak = 0
@@ -50,7 +50,6 @@ class AsyncWorker:
                     )
                     await asyncio.sleep(cooldown)
 
-                    # Extra pause every BATCH_SIZE URLs to break up request cadence
                     if (i + 1) % BATCH_SIZE == 0 and (i + 1) < len(queue):
                         batch_pause = random.uniform(BATCH_PAUSE_MIN, BATCH_PAUSE_MAX)
                         self.logger.info(f"[BATCH PAUSE] Processed {i + 1} URLs, pausing {batch_pause:.2f}s")
@@ -82,13 +81,13 @@ class AsyncWorker:
             self.logger.info(f"[STEP 4] Human delay {delay:.2f}s")
             await asyncio.sleep(delay)
 
-            # STEP 5: Wait for PoW captcha to auto-resolve — no human fallback
             self.logger.info("[STEP 5] Waiting for button enabled (PoW captcha)...")
             resolved = await self.wait_for_button_enabled(page)
             if not resolved:
-                self.logger.warning(f"[FAILED] PoW captcha timeout | {url}")
-                log_to_file(LOGS_CSV, url, "failed", 1, "PoW captcha timeout")
-                return False
+                detail = "PoW captcha timeout"
+                self.logger.warning(f"[FAILED] {detail} | {url}")
+                log_to_file(LOGS_CSV, url, "failed", 1, detail)
+                return False, detail
             self.logger.info("[STEP 5 DONE] Button enabled")
 
             self.logger.info("[STEP 6] Clicking submit...")
@@ -100,16 +99,17 @@ class AsyncWorker:
 
             if success:
                 self.logger.info(f"[SUCCESS] {url}")
-                return True
+                return True, None
             else:
                 self.logger.warning(f"[FAILED] {detail or 'No success signal'} | {url}")
                 log_to_file(LOGS_CSV, url, "failed", 1, detail)
-                return False
+                return False, detail
 
         except Exception as e:
-            self.logger.error(f"[ERROR] {url} | {type(e).__name__} | {e}")
-            log_to_file(LOGS_CSV, url, "error", 1, str(e))
-            return False
+            detail = str(e)
+            self.logger.error(f"[ERROR] {url} | {type(e).__name__} | {detail}")
+            log_to_file(LOGS_CSV, url, "error", 1, detail)
+            return False, detail
 
     async def wait_for_button_enabled(self, page, timeout=CAPTCHA_AUTO_TIMEOUT_MS):
         """
