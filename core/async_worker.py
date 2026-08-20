@@ -4,8 +4,8 @@ import random
 import time
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
 from config import BASE_URL, COOLDOWN_MIN, COOLDOWN_MAX, PROFILE_DIR, LOGS_CSV, HEADLESS, FAST_MODE
-from human_type import human_type
-from logger import log_to_file
+from core.human_type import human_type
+from core.logger import log_to_file
 
 class AsyncWorker:
     def __init__(self, logger):
