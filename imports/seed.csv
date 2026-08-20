@@ -1,0 +1,13 @@
+url,status,attempts,last_attempt_at,submitted_at,last_error
+https://example.com,,,,,
+https://www.example.com,,,,,
+https://example.org,,,,,
+https://www.wikipedia.org,,,,,
+https://developer.mozilla.org,,,,,
+https://www.example.com/test-path,,,,,
+https://www.example.com?param=1,,,,,
+https://www.example.com/path/subpath,,,,,
+https://developer.mozilla.org/en-US/docs/Web,,,,,
+http://foo.com/blah_blah,,,,,
+https://www.example.com/foo/?bar=baz&inga=42,,,,,
+http://userid:password@host.com:8080,,,,,

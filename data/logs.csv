@@ -15,3 +15,18 @@ timestamp,url,status,attempt,error
 2026-08-19T07:34:53.357680+00:00,http://userid:password@host.com:8080,failed,3,
 2026-08-19T07:53:27.217776+00:00,http://userid:password@host.com:8080,failed,1,Please insert a valid URL.
 2026-08-19T07:53:27.219101+00:00,http://userid:password@host.com:8080,failed,4,
+2026-08-20T07:01:49.018696+00:00,https://example.com,success,1,
+2026-08-20T07:02:12.883359+00:00,https://www.example.com,success,1,
+2026-08-20T07:02:31.355197+00:00,https://example.org,success,1,
+2026-08-20T07:02:52.842851+00:00,https://www.wikipedia.org,success,1,
+2026-08-20T07:03:24.929175+00:00,https://developer.mozilla.org,success,1,
+2026-08-20T07:03:55.373619+00:00,https://www.example.com/test-path,success,1,
+2026-08-20T07:04:23.820886+00:00,https://www.example.com?param=1,success,1,
+2026-08-20T07:04:51.610867+00:00,https://www.example.com/path/subpath,success,1,
+2026-08-20T07:05:17.675586+00:00,https://developer.mozilla.org/en-US/docs/Web,success,1,
+2026-08-20T07:05:38.076239+00:00,http://foo.com/blah_blah,success,1,
+2026-08-20T07:05:59.322471+00:00,https://www.example.com/foo/?bar=baz&inga=42,success,1,
+2026-08-20T07:06:13.128230+00:00,http://userid:password@host.com:8080,failed,1,Please insert a valid URL.
+2026-08-20T07:06:13.133443+00:00,http://userid:password@host.com:8080,retry,1,
+2026-08-20T07:08:41.594128+00:00,http://userid:password@host.com:8080,failed,1,Please insert a valid URL.
+2026-08-20T07:08:41.600270+00:00,http://userid:password@host.com:8080,retry,2,

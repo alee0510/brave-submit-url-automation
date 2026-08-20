@@ -1,8 +1,10 @@
 data/
 errors/
 profile/
+test/
 __pycache__/
 *.pyc
+.venv/
 .git
 .gitignore
 README.md

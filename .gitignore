@@ -16,3 +16,6 @@ errors/
 profile/
 *.pyc
 .env
+
+# test folder
+/test
