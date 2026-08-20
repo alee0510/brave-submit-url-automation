@@ -8,6 +8,7 @@ ERRORS_DIR = os.path.join(BASE_DIR, "errors")
 
 URLS_CSV = os.path.join(DATA_DIR, "urls.csv")
 LOGS_CSV = os.path.join(DATA_DIR, "logs.csv")
+LOG_FILE = os.path.join(DATA_DIR, "run.log")   # full verbose trace lives here now
 
 # Target
 BASE_URL = "https://search.brave.com/submit-url"
