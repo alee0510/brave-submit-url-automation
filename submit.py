@@ -12,8 +12,8 @@ from core.importer import import_urls
 from cli.report import render_status_table
 from config import MAX_RETRIES, LOGS_CSV, LOG_FILE
 
-logger = setup_logger()
 console = Console()
+logger = setup_logger(console)
 
 
 def _now():
@@ -45,7 +45,7 @@ async def run(mode):
         BarColumn(),
         TaskProgressColumn(),
         TimeElapsedColumn(),
-        console=console,
+        console=console,          # same instance as the logger
     ) as progress:
         task = progress.add_task("Submitting", total=len(urls))
 

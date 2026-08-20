@@ -6,7 +6,7 @@ from rich.logging import RichHandler
 from config import LOG_FILE
 
 
-def setup_logger():
+def setup_logger(console=None):
     logger = logging.getLogger("brave_submitter")
     logger.setLevel(logging.DEBUG)
     logger.propagate = False
@@ -21,10 +21,12 @@ def setup_logger():
     file_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s"))
 
     console_handler = RichHandler(
+        console=console, # shares the same Console as Progress
         level=logging.WARNING,
         show_time=False,
         show_path=False,
         markup=True,
+        rich_tracebacks=False,
     )
 
     logger.addHandler(file_handler)
