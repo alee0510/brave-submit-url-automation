@@ -1,0 +1,16 @@
+services:
+  brave-submitter:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      - HEADLESS=${HEADLESS:-false}
+      - FAST_MODE=${FAST_MODE:-false}
+    volumes:
+      - ../data:/app/data
+      - ../errors:/app/errors
+      - ../profile:/app/profile
+      - ../imports:/app/imports
+    stdin_open: true
+    tty: true
+    # No restart policy — this is invoked manually via `docker compose run`, not a daemon
