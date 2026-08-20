@@ -3,7 +3,7 @@ import asyncio
 import random
 import time
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError
-from config import BASE_URL, COOLDOWN_MIN, COOLDOWN_MAX, PROFILE_DIR, LOGS_CSV
+from config import BASE_URL, COOLDOWN_MIN, COOLDOWN_MAX, PROFILE_DIR, LOGS_CSV, HEADLESS, FAST_MODE
 from human_type import human_type
 from logger import log_to_file
 
@@ -17,7 +17,7 @@ class AsyncWorker:
         async with async_playwright() as p:
             context = await p.chromium.launch_persistent_context(
                 user_data_dir=PROFILE_DIR,
-                headless=False,
+                headless=HEADLESS,
                 channel="chrome",
                 args=["--start-maximized", "--disable-blink-features=AutomationControlled", "--enable-sandbox"]
             )
@@ -32,10 +32,11 @@ class AsyncWorker:
 
                     if success:
                         failure_streak = 0
-                        cooldown = random.uniform(COOLDOWN_MIN, COOLDOWN_MAX)
+                        cooldown = random.uniform(0.5, 1.5) if FAST_MODE else random.uniform(COOLDOWN_MIN, COOLDOWN_MAX)
                     else:
                         failure_streak += 1
-                        cooldown = min(60, random.uniform(COOLDOWN_MIN * 2.0, COOLDOWN_MAX * 2.0) * (2 ** failure_streak))
+                        base_min, base_max = (1.0, 2.0) if FAST_MODE else (COOLDOWN_MIN * 2.0, COOLDOWN_MAX * 2.0)
+                        cooldown = min(60, random.uniform(base_min, base_max) * (2 ** failure_streak))
 
                     self.logger.info(
                         f"[BACKOFF] success={success} | streak={failure_streak} | sleep={cooldown:.2f}s"
@@ -48,38 +49,37 @@ class AsyncWorker:
         try:
             self.logger.info(f"[START] Processing URL: {url}")
 
-            # STEP 1: Navigate
             self.logger.info("[STEP 1] Navigating to Brave submit page...")
             await page.goto(BASE_URL, wait_until="domcontentloaded")
-            current_url = page.url
-            self.logger.info(f"[STEP 1 DONE] Current URL: {current_url}")
+            self.logger.info(f"[STEP 1 DONE] Current URL: {page.url}")
 
-            # STEP 2: Wait for input
             self.logger.info("[STEP 2] Waiting for #url input...")
             await page.wait_for_selector("#url", timeout=10000)
             self.logger.info("[STEP 2 DONE] Input detected")
 
-            # STEP 3: Human typing
             self.logger.info("[STEP 3] Typing URL...")
             await human_type(page, "#url", url)
             self.logger.info("[STEP 3 DONE] Typing complete")
 
-            # STEP 4: Pre-submit delay
-            delay = random.uniform(0.5, 1.5)
-            self.logger.info(f"[STEP 4] Human delay {delay:.2f}s")
-            await asyncio.sleep(delay)
+            if not FAST_MODE:
+                delay = random.uniform(0.5, 1.5)
+                self.logger.info(f"[STEP 4] Human delay {delay:.2f}s")
+                await asyncio.sleep(delay)
 
-            # STEP 5: Wait for captcha/button
+            # STEP 5: Wait for captcha/button — now checked, not assumed
             self.logger.info("[STEP 5] Waiting for button enabled (captcha)...")
-            await self.wait_for_button_enabled(page)
+            resolved = await self.wait_for_button_enabled(page)
+            if not resolved:
+                detail = "PoW captcha not resolved (headless timeout)"
+                self.logger.warning(f"[FAILED] {detail} | {url}")
+                log_to_file(LOGS_CSV, url, "failed", 1, detail)
+                return False
             self.logger.info("[STEP 5 DONE] Button enabled")
 
-            # STEP 6: Click submit
             self.logger.info("[STEP 6] Clicking submit...")
             await page.click("button[name='captcha-button']")
             self.logger.info("[STEP 6 DONE] Click executed")
 
-            # STEP 7: Wait for success
             self.logger.info("[STEP 7] Waiting for success signal...")
             success, detail = await self.wait_for_success(page)
 
@@ -99,7 +99,9 @@ class AsyncWorker:
     async def wait_for_button_enabled(self, page, timeout=120000):
         """
         Wait until captcha is solved and button becomes enabled.
-        Fallback to manual ENTER if needed.
+        Headed mode: falls back to manual ENTER (unchanged, unbounded — a person is present).
+        Headless mode: no one can see the browser, so no manual fallback —
+        returns False on timeout instead of blocking forever.
         """
         try:
             self.logger.info("[WAIT] Monitoring button state...")
@@ -110,9 +112,9 @@ class AsyncWorker:
                 }""",
                 timeout=timeout
             )
+            return True
         except PlaywrightTimeoutError:
             self.logger.warning("[TIMEOUT] ⚠️ Button still disabled (captcha likely present)")
-            # EXTRA DEBUG: check button state
             try:
                 disabled = await page.eval_on_selector(
                     "button[name='captcha-button']",
@@ -122,13 +124,15 @@ class AsyncWorker:
             except:
                 self.logger.warning("[DEBUG] Could not inspect button")
 
+            if HEADLESS:
+                self.logger.warning("[HEADLESS] No display for manual solve — failing this URL")
+                await self.debug_snapshot(page, "pow_timeout")
+                return False
+
             await asyncio.to_thread(input, "👉 Solve captcha, then press ENTER...")
+            return True
 
     async def wait_for_success(self, page):
-        """
-        Detect success or an explicit validation/server error.
-        Returns a tuple: (success: bool, detail: str | None)
-        """
         try:
             await page.wait_for_selector(
                 "div.info.error, div.info:has-text('Success')",
@@ -136,18 +140,14 @@ class AsyncWorker:
             )
         except PlaywrightTimeoutError:
             await self.debug_snapshot(page, "timeout")
-
-            # Fallback: check button text (Submitted)
             try:
                 btn_text = await page.text_content("button[name='captcha-button']")
                 if btn_text and "submitted" in btn_text.lower():
                     return True, None
             except:
                 pass
-
             return False, "Timed out waiting for a success/error signal"
 
-        # Something appeared — figure out which one it was
         error_el = await page.query_selector("div.info.error")
         if error_el:
             detail = await self._extract_message(error_el)
@@ -158,10 +158,6 @@ class AsyncWorker:
         return True, None
 
     async def _extract_message(self, element):
-        """
-        Pull the human-readable text out of a div.info block,
-        e.g. 'Please insert a valid URL.'
-        """
         try:
             detail_el = await element.query_selector(".t-tertiary")
             text = await (detail_el.inner_text() if detail_el else element.inner_text())
@@ -173,13 +169,10 @@ class AsyncWorker:
         try:
             errors_dir = "errors"
             os.makedirs(errors_dir, exist_ok=True)
-
             path = os.path.join(errors_dir, f"debug_{label}_{int(time.time())}.html")
             content = await page.content()
-
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content)
-
             self.logger.info(f"[SNAPSHOT] Saved DOM to {path}")
         except Exception as e:
             self.logger.warning(f"[SNAPSHOT ERROR] {e}")

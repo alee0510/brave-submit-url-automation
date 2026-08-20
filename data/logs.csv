@@ -1,17 +1,1 @@
 timestamp,url,status,attempt,error
-2026-08-19T07:23:06.884436+00:00,https://example.com,success,1,
-2026-08-19T07:23:21.033224+00:00,https://www.example.com,success,1,
-2026-08-19T07:23:33.386684+00:00,https://example.org,success,1,
-2026-08-19T07:23:47.149306+00:00,https://www.wikipedia.org,success,1,
-2026-08-19T07:24:01.301681+00:00,https://developer.mozilla.org,success,1,
-2026-08-19T07:24:16.092701+00:00,https://www.example.com/test-path,success,1,
-2026-08-19T07:24:31.953908+00:00,https://www.example.com?param=1,success,1,
-2026-08-19T07:24:49.537533+00:00,https://www.example.com/path/subpath,success,1,
-2026-08-19T07:25:09.645215+00:00,https://developer.mozilla.org/en-US/docs/Web,success,1,
-2026-08-19T07:25:23.301874+00:00,http://foo.com/blah_blah,success,1,
-2026-08-19T07:25:39.390600+00:00,https://www.example.com/foo/?bar=baz&inga=42,success,1,
-2026-08-19T07:25:59.799747+00:00,http://userid:password@host.com:8080,retry,1,
-2026-08-19T07:31:27.543746+00:00,http://userid:password@host.com:8080,retry,2,
-2026-08-19T07:34:53.357680+00:00,http://userid:password@host.com:8080,failed,3,
-2026-08-19T07:53:27.217776+00:00,http://userid:password@host.com:8080,failed,1,Please insert a valid URL.
-2026-08-19T07:53:27.219101+00:00,http://userid:password@host.com:8080,failed,4,
