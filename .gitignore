@@ -11,7 +11,7 @@ wheels/
 .venv
 
 # data and logs
-data/*.csv
+data/*
 errors/
 profile/
 *.pyc
