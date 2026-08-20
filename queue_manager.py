@@ -39,7 +39,11 @@ class QueueManager:
         return [u for u, r in self.rows.items() if r["status"] == "failed"]
 
     def get_attempts(self, url):
-        return int(self.rows.get(url, {}).get("attempts", 0))
+        value = self.rows.get(url, {}).get("attempts", 0)
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
 
     def _update(self, url, status, attempts, timestamp, error="", submitted=False):
         self.rows.setdefault(url, {"url": url})
