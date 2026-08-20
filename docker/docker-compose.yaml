@@ -3,6 +3,9 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+    environment:
+      - HEADLESS=${HEADLESS:-false}
+      - FAST_MODE=${FAST_MODE:-false}
     volumes:
       - ../data:/app/data
       - ../errors:/app/errors

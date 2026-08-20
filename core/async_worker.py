@@ -9,6 +9,7 @@ from config import (
     COOLDOWN_MIN, COOLDOWN_MAX,
     BATCH_SIZE, BATCH_PAUSE_MIN, BATCH_PAUSE_MAX,
     CAPTCHA_AUTO_TIMEOUT_MS, SELECTOR_TIMEOUT_MS,
+    HEADLESS, FAST_MODE
 )
 from core.human_type import human_type
 from core.logger import log_to_file
@@ -25,7 +26,7 @@ class AsyncWorker:
         async with async_playwright() as p:
             context = await p.chromium.launch_persistent_context(
                 user_data_dir=PROFILE_DIR,
-                headless=False,
+                headless=HEADLESS,
                 channel="chrome",
                 args=["--start-maximized", "--disable-blink-features=AutomationControlled", "--enable-sandbox"]
             )
@@ -77,9 +78,10 @@ class AsyncWorker:
             await human_type(page, "#url", url)
             self.logger.info("[STEP 3 DONE] Typing complete")
 
-            delay = random.uniform(0.5, 1.5)
-            self.logger.info(f"[STEP 4] Human delay {delay:.2f}s")
-            await asyncio.sleep(delay)
+            if not FAST_MODE:
+                delay = random.uniform(0.5, 1.5)
+                self.logger.info(f"[STEP 4] Human delay {delay:.2f}s")
+                await asyncio.sleep(delay)
 
             self.logger.info("[STEP 5] Waiting for button enabled (PoW captcha)...")
             resolved = await self.wait_for_button_enabled(page)

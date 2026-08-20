@@ -32,3 +32,7 @@ CAPTCHA_AUTO_TIMEOUT_MS = 180_000  # 3 minutes
 
 # Misc timeouts
 SELECTOR_TIMEOUT_MS = 10_000
+
+# Headless toggle
+HEADLESS = os.getenv("HEADLESS", "false").lower() == "true"
+FAST_MODE = os.getenv("FAST_MODE", "false").lower() == "true"
